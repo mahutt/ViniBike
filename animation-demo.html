@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Moving Circle</title>
+    <style>
+      #future-position {
+        width: 80px;
+        height: 80px;
+        border: 2px dashed black;
+        border-radius: 50%;
+        position: absolute;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+      }
+      #animated-circle {
+        width: 80px;
+        height: 80px;
+        background-color: red;
+        background-image: url('./images/vini-logo.png');
+        background-size: cover;
+        background-position: center;
+        border: 2px solid red;
+        border-radius: 50%;
+        position: absolute;
+        transition: left 2s linear, top 2s linear;
+      }
+    </style>
+  </head>
+  <body>
+    <div>Frames received from sim: <span class="frame-counter">0</span></div>
+    <div>The red circle represents what the end user actually sees!</div>
+
+    <div class="container">
+      <div id="future-position">
+        <div style="text-align: center">
+          frame
+          <span class="frame-counter">0</span>
+          position
+        </div>
+      </div>
+      <div id="animated-circle"></div>
+    </div>
+
+    <script>
+      let frameCount = 0
+
+      function createPositionCycler() {
+        const values = [
+          { x: '20%', y: '20%' },
+          { x: '50%', y: '20%' },
+          { x: '80%', y: '20%' },
+          { x: '80%', y: '80%' },
+          { x: '50%', y: '80%' },
+          { x: '20%', y: '80%' },
+        ]
+        let i = 0
+        return function () {
+          const val = values[i]
+          i = (i + 1) % values.length
+          return val
+        }
+      }
+
+      function setFuturePosition({ x, y }) {
+        const circle = document.getElementById('future-position')
+        circle.style.left = x
+        circle.style.top = y
+      }
+
+      function setAnimatedPosition({ x, y }) {
+        const circle = document.getElementById('animated-circle')
+        circle.style.left = x
+        circle.style.top = y
+      }
+
+      const getNextPosition = createPositionCycler()
+      const firstPosition = getNextPosition()
+      setFuturePosition(firstPosition)
+      setAnimatedPosition(firstPosition)
+
+      setInterval(() => {
+        frameCount++
+        document
+          .querySelectorAll('.frame-counter')
+          .forEach((el) => (el.textContent = `${frameCount}`))
+
+        const nextPosition = getNextPosition()
+        setFuturePosition(nextPosition)
+        setAnimatedPosition(nextPosition)
+      }, 2000) // 2 seconds
+    </script>
+  </body>
+</html>
