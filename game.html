@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bike Run Game</title>
+    <style>
+      body {
+        background: #f7f7f7;
+        margin: 0;
+        overflow: hidden;
+      }
+      #gameCanvas {
+        display: block;
+        margin: 40px auto;
+        background: #fff;
+        border: 2px solid #333;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1);
+      }
+      #score {
+        text-align: center;
+        font-size: 2em;
+        margin-top: 10px;
+        color: #333;
+      }
+      #gameOver {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(255, 255, 255, 0.95);
+        padding: 40px 60px;
+        border-radius: 16px;
+        box-shadow: 0 2px 16px rgba(0, 0, 0, 0.15);
+        font-size: 2em;
+        color: #222;
+        display: none;
+        z-index: 10;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="score">Score: 0</div>
+    <canvas id="gameCanvas" width="800" height="300"></canvas>
+    <div id="gameOver">
+      Game Over<br /><button onclick="restartGame()">Restart</button>
+    </div>
+    <script>
+      // --- Dino Run Clone: Bike Edition ---
+      const canvas = document.getElementById('gameCanvas')
+      const ctx = canvas.getContext('2d')
+      const scoreDiv = document.getElementById('score')
+      const gameOverDiv = document.getElementById('gameOver')
+
+      // Bike character image
+      const bikeImg = new Image()
+      bikeImg.src = 'images/vini-char.png' // Updated to use your asset
+
+      // Placeholder for obstacle image
+      const obstacleImg = new Image()
+      obstacleImg.src = 'images/obstacle-placeholder.png' // Replace with your asset
+
+      // Game variables
+      let bike = {
+        x: 60,
+        y: 220,
+        width: 60,
+        height: 60,
+        vy: 0,
+        gravity: 1.2,
+        jumpPower: -18,
+        isJumping: false,
+      }
+
+      let obstacles = []
+      let score = 0
+      let gameSpeed = 7
+      let gameActive = true
+
+      function drawBike() {
+        ctx.save()
+        if (bikeImg.src && bikeImg.complete && bikeImg.naturalWidth > 0) {
+          ctx.drawImage(bikeImg, bike.x, bike.y, bike.width, bike.height)
+        } else {
+          ctx.fillStyle = '#1976d2'
+          ctx.fillRect(bike.x, bike.y, bike.width, bike.height)
+        }
+        ctx.restore()
+      }
+
+      function drawObstacle(obstacle) {
+        ctx.save()
+        if (
+          obstacleImg.src &&
+          obstacleImg.complete &&
+          obstacleImg.naturalWidth > 0
+        ) {
+          ctx.drawImage(
+            obstacleImg,
+            obstacle.x,
+            obstacle.y,
+            obstacle.width,
+            obstacle.height
+          )
+        } else {
+          ctx.fillStyle = '#757575'
+          ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height)
+        }
+        ctx.restore()
+      }
+
+      function spawnObstacle() {
+        const height = 40 + Math.random() * 40
+        obstacles.push({
+          x: canvas.width,
+          y: 260 - height,
+          width: 30 + Math.random() * 30,
+          height: height,
+        })
+      }
+
+      function updateBike() {
+        bike.y += bike.vy
+        bike.vy += bike.gravity
+        if (bike.y >= 220) {
+          bike.y = 220
+          bike.vy = 0
+          bike.isJumping = false
+        }
+      }
+
+      function updateObstacles() {
+        for (let i = obstacles.length - 1; i >= 0; i--) {
+          obstacles[i].x -= gameSpeed
+          if (obstacles[i].x + obstacles[i].width < 0) {
+            obstacles.splice(i, 1)
+            score++
+          }
+        }
+      }
+
+      function checkCollision() {
+        for (let obs of obstacles) {
+          if (
+            bike.x < obs.x + obs.width &&
+            bike.x + bike.width > obs.x &&
+            bike.y < obs.y + obs.height &&
+            bike.y + bike.height > obs.y
+          ) {
+            // On collision, reset character, obstacles, and score
+            obstacles = []
+            score = 0
+            scoreDiv.textContent = 'Score: 0'
+            bike.y = 220
+            bike.vy = 0
+            bike.isJumping = false
+            break
+          }
+        }
+      }
+
+      // Remove showGameOver, game never stops
+
+      function restartGame() {
+        obstacles = []
+        score = 0
+        gameSpeed = 7
+        bike.y = 220
+        bike.vy = 0
+        bike.isJumping = false
+        scoreDiv.textContent = 'Score: 0'
+        requestAnimationFrame(gameLoop)
+      }
+
+      let obstacleTimer = 0
+      function gameLoop() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height)
+        // Draw ground
+        ctx.fillStyle = '#e0e0e0'
+        ctx.fillRect(0, 280, canvas.width, 20)
+        // Draw bike
+        drawBike()
+        // Draw obstacles
+        for (let obs of obstacles) drawObstacle(obs)
+        // Update
+        updateBike()
+        updateObstacles()
+        checkCollision()
+        scoreDiv.textContent = 'Score: ' + score
+        obstacleTimer++
+        if (obstacleTimer > 60 + Math.random() * 60) {
+          spawnObstacle()
+          obstacleTimer = 0
+        }
+        requestAnimationFrame(gameLoop)
+      }
+
+      document.addEventListener('keydown', function (e) {
+        if ((e.code === 'Space' || e.code === 'ArrowUp') && !bike.isJumping) {
+          bike.vy = bike.jumpPower
+          bike.isJumping = true
+        }
+      })
+
+      // Load images and start game
+      let assetsLoaded = 0
+      function checkAssetsLoaded() {
+        assetsLoaded++
+        if (assetsLoaded === 2) {
+          requestAnimationFrame(gameLoop)
+        }
+      }
+      bikeImg.onload = checkAssetsLoaded
+      obstacleImg.onload = checkAssetsLoaded
+
+      // If images fail to load, use colored rectangles
+      bikeImg.onerror = function () {
+        bikeImg.onload = null
+        bikeImg.src = ''
+        checkAssetsLoaded()
+      }
+      obstacleImg.onerror = function () {
+        obstacleImg.onload = null
+        obstacleImg.src = ''
+        checkAssetsLoaded()
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vini Bike - Spinning Wheels</title>
+    <style>
+      body {
+        background: #f5f5f5;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+      }
+      .bike {
+        position: relative;
+        width: 500px;
+        height: 250px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .wheel {
+        z-index: 100;
+        width: 120px;
+        height: 120px;
+        position: absolute;
+        bottom: 0;
+        animation: spin 2s linear infinite;
+      }
+      .wheel.left {
+        left: 40px;
+      }
+      .wheel.right {
+        right: 40px;
+      }
+      @keyframes spin {
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+      .frame {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        pointer-events: none;
+      }
+      /* Simple bike frame using SVG */
+      .frame svg {
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="bike">
+      <img src="images/vini-logo.png" alt="Wheel" class="wheel left" />
+      <img src="images/vini-logo.png" alt="Wheel" class="wheel right" />
+      <div class="frame">
+        <svg viewBox="0 0 500 250">
+          <!-- Frame -->
+          <line
+            x1="100"
+            y1="180"
+            x2="250"
+            y2="80"
+            stroke="#222"
+            stroke-width="8"
+          />
+          <line
+            x1="250"
+            y1="80"
+            x2="400"
+            y2="180"
+            stroke="#222"
+            stroke-width="8"
+          />
+          <line
+            x1="100"
+            y1="180"
+            x2="400"
+            y2="180"
+            stroke="#222"
+            stroke-width="8"
+          />
+          <line
+            x1="250"
+            y1="80"
+            x2="250"
+            y2="180"
+            stroke="#222"
+            stroke-width="8"
+          />
+          <!-- Handlebar -->
+          <line
+            x1="250"
+            y1="80"
+            x2="220"
+            y2="40"
+            stroke="#222"
+            stroke-width="6"
+          />
+          <line
+            x1="220"
+            y1="40"
+            x2="180"
+            y2="60"
+            stroke="#222"
+            stroke-width="6"
+          />
+          <!-- Seat -->
+          <rect x="240" y="70" width="20" height="10" fill="#444" rx="4" />
+        </svg>
+      </div>
+    </div>
+    <footer>
+      <a href="/game.html">Go to game</a>
+    </footer>
+    <script>
+      // Wheels spin via CSS animation. No JS needed for animation, but you can control speed here if desired.
+      // Example: document.querySelectorAll('.wheel').forEach(w => w.style.animationDuration = '1s');
+    </script>
+  </body>
+</html>
