@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vini Cookie Clicker</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        text-align: center;
+        background-color: #f0f0f0;
+        margin: 0;
+        padding: 0;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .counter {
+        font-size: 48px;
+        font-weight: bold;
+        color: #2c3e50;
+        margin: 20px 0;
+      }
+
+      .cookie {
+        cursor: pointer;
+        user-select: none;
+        margin: 20px 0;
+      }
+
+      /* .cookie:hover {
+        transform: scale(1.05);
+      } */
+
+      /* .cookie:active {
+        transform: scale(0.95);
+      } */
+
+      .cookie img {
+        width: 200px;
+        height: 200px;
+        transition: transform 0.1s ease, width 0.2s ease, height 0.2s ease;
+      }
+
+      .click-text {
+        font-size: 18px;
+        color: #666;
+        margin-top: 20px;
+      }
+
+      .click-animation {
+        position: absolute;
+        font-size: 24px;
+        font-weight: bold;
+        color: #e74c3c;
+        pointer-events: none;
+        animation: floatUp 1s ease-out forwards;
+      }
+
+      @keyframes floatUp {
+        0% {
+          opacity: 1;
+          transform: translateY(0);
+        }
+        100% {
+          opacity: 0;
+          transform: translateY(-50px);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="cookie" id="cookie">
+      <img src="images/vini-cookie.png" alt="Vini Cookie" id="cookieImg" />
+    </div>
+
+    <div class="counter" id="counter">0</div>
+
+    <script>
+      let count = 0
+      const counterElement = document.getElementById('counter')
+      const cookieElement = document.getElementById('cookie')
+      const cookieImg = document.getElementById('cookieImg')
+
+      function updateCounter() {
+        counterElement.textContent = count + ' cookies'
+      }
+
+      function createClickAnimation(x, y) {
+        const animation = document.createElement('div')
+        animation.className = 'click-animation'
+        animation.textContent = '+1'
+        animation.style.left = x + 'px'
+        animation.style.top = y + 'px'
+
+        document.body.appendChild(animation)
+
+        // Remove the animation element after it completes
+        setTimeout(() => {
+          if (animation.parentNode) {
+            animation.parentNode.removeChild(animation)
+          }
+        }, 1000)
+      }
+
+      cookieElement.addEventListener('mouseenter', function () {
+        if (
+          !cookieImg.style.transform ||
+          cookieImg.style.transform === 'scale(1)'
+        ) {
+          cookieImg.style.transform = 'scale(1.05)'
+        }
+      })
+
+      cookieElement.addEventListener('mouseleave', function () {
+        cookieImg.style.transform = 'scale(1)'
+      })
+
+      cookieElement.addEventListener('mousedown', function () {
+        cookieImg.style.transform = 'scale(0.95)'
+      })
+
+      cookieElement.addEventListener('mouseup', function () {
+        cookieImg.style.transform = 'scale(1.05)' // Return to hover scale
+      })
+
+      cookieElement.addEventListener('click', function (event) {
+        count++
+        updateCounter()
+
+        // Create click animation at mouse position
+        const rect = cookieElement.getBoundingClientRect()
+        const x = event.clientX - 10 // Offset to center the +1
+        const y = event.clientY - 10
+        createClickAnimation(x, y)
+
+        const newSize = 200 + Math.floor(count * 1)
+        cookieImg.style.width = newSize + 'px'
+        cookieImg.style.height = newSize + 'px'
+      })
+
+      // Initialize the counter display
+      updateCounter()
+    </script>
+  </body>
+</html>
