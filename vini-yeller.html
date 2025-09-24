@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Vini Yeller</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100dvh; font: 16px/1.4 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background: canvas; }
+  .ui {
+    position: fixed; inset: 12px auto auto 12px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    background: color-mix(in oklab, canvas 85%, transparent); padding: 10px 12px; border-radius: 12px;
+    box-shadow: 0 6px 24px rgba(0,0,0,.15); backdrop-filter: blur(6px);
+  }
+  .ui > * { margin-right: 6px; }
+  button { padding: 8px 12px; border-radius: 10px; border: 0; cursor: pointer; }
+  #baseline { min-width: 160px }
+  #relative { min-width: 120px }
+  #high { font-weight: 700; }
+  canvas { width: 100vw; height: 100vh; display: block; }
+  .overlay {
+    position: fixed; inset: 0; display: grid; place-items: center;
+    background: rgba(0,0,0,0.35); color: white; font-weight: 700; letter-spacing: 0.5px;
+    visibility: hidden; opacity: 0; transition: opacity 200ms ease, visibility 200ms ease;
+  }
+  .overlay.show { visibility: visible; opacity: 1; }
+  .bubble {
+    display: grid; place-items: center; width: 220px; height: 220px; border-radius: 999px;
+    background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.65);
+    box-shadow: 0 20px 50px rgba(0,0,0,0.35), inset 0 0 40px rgba(255,255,255,0.08);
+    text-align: center;
+  }
+  .count { font-size: 84px; line-height: 1; margin: 0; }
+  .sub { font-size: 16px; font-weight: 600; opacity: 0.9; margin-top: 8px; }
+  /* High score flash animation */
+  @keyframes flash {
+    0% { background: color-mix(in oklab, canvas 85%, transparent); }
+    20% { background: color-mix(in oklab, #86efac 55%, canvas 45%); }
+    100% { background: color-mix(in oklab, canvas 85%, transparent); }
+  }
+  .flash { animation: flash 800ms ease; }
+
+</style>
+
+<body>
+  <div class="ui" id="toolbar">
+    <button id="start">Start</button>
+    <button id="stop">Stop</button>
+    <button id="resetHigh">Reset High Score</button>
+    <div id="baseline">baseline: — dBFS</div>
+    <div id="relative">Δ: — dB</div>
+    <div id="high">High score: —</div>
+    
+  </div>
+
+
+  <div class="overlay" id="overlay">
+    <div class="bubble">
+      <div class="count" id="count">3</div>
+      <div class="sub">Calibrating baseline… please be quiet</div>
+    </div>
+  </div>
+
+  <canvas id="c"></canvas>
+
+<script>
+const startBtn = document.getElementById('start');
+const stopBtn = document.getElementById('stop');
+const resetHighBtn = document.getElementById('resetHigh');
+const baseEl   = document.getElementById('baseline');
+const relEl    = document.getElementById('relative');
+const highEl   = document.getElementById('high');
+const overlay  = document.getElementById('overlay');
+const countEl  = document.getElementById('count');
+const toolbar  = document.getElementById('toolbar');
+const canvas   = document.getElementById('c');
+const ctx      = canvas.getContext('2d', { alpha: true });
+
+let audioCtx, analyser, data, mediaStream;
+let raf, running = false;
+
+const circles = []; // persistent particles
+let targetCount = 0;
+const maxCircles = 99999;  // user-chosen high ceiling; beware performance
+let baselineDb = null;    // dBFS value treated as "0 dB"
+let highScore = 0;        // highest circle count reached this session (and persisted)
+
+// Load / save high score (localStorage)
+const HS_KEY = 'micCirclesHighScore';
+function loadHigh() {
+  const v = Number(localStorage.getItem(HS_KEY));
+  if (Number.isFinite(v) && v >= 0) highScore = v;
+  renderHigh();
+}
+function saveHigh() {
+  try { localStorage.setItem(HS_KEY, String(highScore)); } catch {}
+}
+function renderHigh() {
+  highEl.textContent = `High score: ${Number.isFinite(highScore) ? highScore : '—'}`;
+}
+function maybeUpdateHigh(newVal) {
+  if (newVal > highScore) {
+    highScore = newVal;
+    renderHigh();
+    saveHigh();
+    // subtle flash to celebrate
+    toolbar.classList.remove('flash');
+    // force reflow to restart animation
+    void toolbar.offsetWidth;
+    toolbar.classList.add('flash');
+  }
+}
+loadHigh();
+
+// Load image for circles (optional)
+const circleImage = new Image();
+circleImage.src = 'images/vini-logo.png'; // Change this to your desired image
+
+// Resize canvas to device pixels for crisp rendering
+function fitCanvas() {
+  const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+  canvas.width  = Math.floor(window.innerWidth * dpr);
+  canvas.height = Math.floor(window.innerHeight * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+addEventListener('resize', fitCanvas); fitCanvas();
+
+// Utility to get a random nice color
+function randHue() { return Math.floor(360 * Math.random()); }
+
+// Create a new circle
+function makeCircle() {
+  const x = Math.random() * window.innerWidth;
+  const y = Math.random() * window.innerHeight;
+  return {
+    x, y,
+    rBase: 10 + Math.random() * 26,
+    rAmp:  6 + Math.random() * 18,
+    t: Math.random() * 1000,
+    speed: 0.008 + Math.random() * 0.02,
+    hue: randHue(),
+    jitterX: (Math.random() - 0.5) * 0.6,
+    jitterY: (Math.random() - 0.5) * 0.6,
+    alpha: 0.0  // fade-in
+  };
+}
+
+// Ensure circles.length === targetCount
+function ensureCircleCount() {
+  if (circles.length < targetCount) {
+    const need = targetCount - circles.length;
+    for (let i = 0; i < need; i++) circles.push(makeCircle());
+  } else if (circles.length > targetCount) {
+    circles.splice(targetCount, circles.length - targetCount);
+  }
+}
+
+function drawFrame(loudNorm, deltaDb) {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Draw circles (as images if loaded; otherwise fallback shapes)
+  for (let i = 0; i < circles.length; i++) {
+    const c = circles[i];
+    c.t += c.speed * (1 + loudNorm * 1.5);
+    c.x += c.jitterX * (0.5 + loudNorm);
+    c.y += c.jitterY * (0.5 + loudNorm);
+
+    // wrap around
+    if (c.x < 0) c.x += window.innerWidth;
+    if (c.x > window.innerWidth) c.x -= window.innerWidth;
+    if (c.y < 0) c.y += window.innerHeight;
+    if (c.y > window.innerHeight) c.y -= window.innerHeight;
+
+    // Size correlates to input volume (deltaDb) - less steep gradient
+    const volumeScale = 1 + (deltaDb * 0.02); // Base size + gentler volume multiplier
+    const scale = ((c.rBase + Math.sin(c.t) * c.rAmp) / 50) * volumeScale;
+
+    // fade-in quickly when added
+    c.alpha = Math.min(1, c.alpha + 0.06);
+
+    ctx.save();
+    ctx.globalAlpha = 0.6 + 0.4 * c.alpha;  // slight translucency
+    ctx.translate(c.x, c.y);
+    ctx.scale(Math.max(0.1, scale), Math.max(0.1, scale));
+    ctx.rotate(c.t * 0.5); // Fixed rotation speed
+    
+    if (circleImage.complete && circleImage.naturalWidth > 0) {
+      ctx.drawImage(circleImage, -circleImage.width/2, -circleImage.height/2);
+    } else {
+      // Fallback: draw colored circle
+      ctx.fillStyle = `hsl(${c.hue} 70% 55%)`;
+      ctx.beginPath();
+      ctx.arc(0, 0, 25, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+}
+
+// Web Audio helpers
+function computeDbFromBlock(floatBlock) {
+  let sum = 0;
+  for (let i = 0; i < floatBlock.length; i++) {
+    const v = floatBlock[i];
+    sum += v*v;
+  }
+  const rms = Math.sqrt(sum / floatBlock.length) || 1e-12;
+  return 20 * Math.log10(rms);
+}
+
+// ---- Start flow with 3s countdown baseline ----
+startBtn.onclick = async () => {
+  if (running) return;
+  try {
+    mediaStream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+    });
+
+    audioCtx  = new (window.AudioContext || window.webkitAudioContext)();
+    const src = audioCtx.createMediaStreamSource(mediaStream);
+
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 2048;
+    data = new Float32Array(analyser.fftSize);
+    src.connect(analyser);
+
+    startBtn.disabled = true;
+    startBtn.textContent = 'Calibrating…';
+    overlay.classList.add('show');
+
+    // Countdown from 3..2..1 (collecting baseline samples the whole time)
+    let remaining = 3;
+    countEl.textContent = remaining;
+    let samples = 0;
+    let accum = 0;
+
+    // Sample baseline every animation frame during countdown
+    let samplingRAF;
+    const sampleLoop = () => {
+      if (!analyser) return;
+      analyser.getFloatTimeDomainData(data);
+      accum += computeDbFromBlock(data);
+      samples++;
+      samplingRAF = requestAnimationFrame(sampleLoop);
+    };
+    samplingRAF = requestAnimationFrame(sampleLoop);
+
+    const timer = setInterval(() => {
+      remaining--;
+      if (remaining <= 0) {
+        clearInterval(timer);
+        cancelAnimationFrame(samplingRAF);
+        // Compute baseline
+        baselineDb = accum / Math.max(1, samples);
+        baseEl.textContent = `baseline: ${baselineDb.toFixed(1)} dBFS`;
+        
+        // Show "YELL" prompt for 1.5 seconds
+        countEl.textContent = 'YELL!';
+        document.querySelector('.sub').textContent = 'Make some noise!';
+        
+        setTimeout(() => {
+          overlay.classList.remove('show');
+          running = true;
+          startBtn.textContent = 'Listening…';
+          runLoop();
+        }, 1500);
+      } else {
+        countEl.textContent = remaining;
+      }
+    }, 1000);
+
+  } catch (err) {
+    console.error('Microphone error:', err);
+    alert('Mic error: ' + err.message);
+  }
+};
+
+function runLoop() {
+  let smoothDb = baselineDb;
+
+  function tick() {
+    analyser.getFloatTimeDomainData(data);
+    const db = computeDbFromBlock(data);
+
+    // Smooth dB
+    const coeff = db > smoothDb ? 0.45 : 0.15;
+    smoothDb = coeff * db + (1 - coeff) * smoothDb;
+
+    // Relative dB above baseline (baseline treated as 0)
+    const deltaDb = Math.max(0, (smoothDb - baselineDb)); // dBFS are negative; louder ⇒ closer to 0 ⇒ larger delta
+    relEl.textContent = `Δ: ${deltaDb.toFixed(1)} dB`;
+
+    // Integer "decibel units" -> number of circles (clamped)
+    // Only show circles for decibels 5 and above
+    targetCount = deltaDb >= 2 ? Math.min(maxCircles, Math.floor(deltaDb + 1e-6)) : 0;
+
+    // Update high score if we beat it
+    maybeUpdateHigh(targetCount);
+
+    // 0..1 normalized loudness to animate motion speed (optional)
+    const loudNorm = Math.min(1, deltaDb / 40); // 0..1 around +40 dB
+
+    ensureCircleCount();
+    drawFrame(loudNorm, deltaDb);
+
+    raf = requestAnimationFrame(tick);
+  }
+  tick();
+}
+
+// Stop button functionality
+stopBtn.onclick = () => {
+  if (!running) return;
+  // Cancel animation
+  if (raf) { cancelAnimationFrame(raf); raf = null; }
+  // Stop mic
+  if (mediaStream) { mediaStream.getTracks().forEach(track => track.stop()); mediaStream = null; }
+  // Close audio
+  if (audioCtx) { audioCtx.close(); audioCtx = null; }
+  // Reset runtime (but keep high score)
+  running = false;
+  analyser = null;
+  data = null;
+  baselineDb = null;
+  targetCount = 0;
+  circles.length = 0;
+  // Reset UI
+  startBtn.disabled = false;
+  startBtn.textContent = 'Start';
+  baseEl.textContent = 'baseline: — dBFS';
+  relEl.textContent = 'Δ: — dB';
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+};
+
+// Reset high score button
+resetHighBtn.onclick = () => {
+  highScore = 0;
+  renderHigh();
+  saveHigh();
+};
+
+// Cleanup on page hide
+addEventListener('pagehide', () => { 
+  cancelAnimationFrame(raf);
+  if (mediaStream) mediaStream.getTracks().forEach(track => track.stop());
+});
+</script>
+</body>
+</html>
