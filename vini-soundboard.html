@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Vini Soundboard</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        text-align: center;
+        background: #222;
+        color: #fff;
+        margin: 0;
+        padding: 0;
+      }
+      h1 {
+        margin-top: 32px;
+        margin-bottom: 40px;
+        font-size: 2.5em;
+        letter-spacing: 2px;
+      }
+      .soundboard {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 40px 60px;
+        justify-content: center;
+        max-width: 500px;
+        margin: 0 auto;
+      }
+      .button-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      .arcade-btn {
+        width: 90px;
+        height: 90px;
+        border-radius: 50%;
+        background: radial-gradient(
+          circle at 30% 30%,
+          #ff3c3c 70%,
+          #b30000 100%
+        );
+        border: 4px solid #fff;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3), 0 2px 0 #fff inset;
+        cursor: pointer;
+        outline: none;
+        transition: transform 0.1s;
+        font-size: 1.5em;
+        color: #fff;
+        font-weight: bold;
+        margin-bottom: 10px;
+      }
+      .arcade-btn:active {
+        transform: scale(0.95);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      }
+      .label {
+        font-size: 1em;
+        margin-top: 4px;
+        color: #eee;
+        letter-spacing: 1px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Vini Soundboard</h1>
+    <div class="soundboard">
+      <!-- Buttons will be generated dynamically by JavaScript -->
+    </div>
+    <script>
+      // Configuration array for sounds
+      const soundConfig = [
+        { id: 1, label: 'SENPAI!! 😩', filename: 'senpai.mp3' },
+        { id: 2, label: 'anebal', filename: 'black-coffee.mp3' },
+        { id: 3, label: 'fuck if i know', filename: 'fuckifiknow.mp3' },
+        { id: 4, label: 'im confused', filename: 'confused.mp3' },
+        { id: 5, label: 'hungry vini', filename: 'breakfast.mp3' },
+        { id: 6, label: 'ambrose be like', filename: 'beer.mp3' },
+      ]
+
+      function playSound(filename) {
+        const audio = new Audio(`/sounds/${filename}`)
+        audio.play()
+      }
+
+      function generateSoundboard() {
+        const soundboard = document.querySelector('.soundboard')
+        soundboard.innerHTML = '' // Clear existing content
+
+        soundConfig.forEach((sound) => {
+          const buttonContainer = document.createElement('div')
+          buttonContainer.className = 'button-container'
+
+          const button = document.createElement('button')
+          button.className = 'arcade-btn'
+          button.textContent = sound.id
+          button.onclick = () => playSound(sound.filename)
+
+          const label = document.createElement('div')
+          label.className = 'label'
+          label.textContent = sound.label
+
+          buttonContainer.appendChild(button)
+          buttonContainer.appendChild(label)
+          soundboard.appendChild(buttonContainer)
+        })
+      }
+
+      // Generate the soundboard when the page loads
+      document.addEventListener('DOMContentLoaded', generateSoundboard)
+    </script>
+  </body>
+</html>
