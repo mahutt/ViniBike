@@ -2,6 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Vini Soundboard</title>
     <style>
       body {
@@ -21,10 +22,11 @@
       .soundboard {
         display: grid;
         grid-template-columns: repeat(2, 1fr);
-        gap: 40px 60px;
+        gap: 30px 40px;
         justify-content: center;
         max-width: 500px;
         margin: 0 auto;
+        padding: 0 20px;
       }
       .button-container {
         display: flex;
@@ -32,8 +34,8 @@
         align-items: center;
       }
       .arcade-btn {
-        width: 90px;
-        height: 90px;
+        width: 120px;
+        height: 120px;
         border-radius: 50%;
         background: radial-gradient(
           circle at 30% 30%,
@@ -45,10 +47,13 @@
         cursor: pointer;
         outline: none;
         transition: transform 0.1s;
-        font-size: 1.5em;
+        font-size: 1.8em;
         color: #fff;
         font-weight: bold;
         margin-bottom: 10px;
+        /* Better touch targets */
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
       }
       .arcade-btn:active {
         transform: scale(0.95);
@@ -59,6 +64,58 @@
         margin-top: 4px;
         color: #eee;
         letter-spacing: 1px;
+      }
+
+      /* Mobile optimizations */
+      @media (max-width: 768px) {
+        body {
+          padding: 0 10px;
+        }
+
+        h1 {
+          font-size: 2em;
+          margin-top: 20px;
+          margin-bottom: 30px;
+        }
+
+        .soundboard {
+          gap: 25px 30px;
+          max-width: 400px;
+          padding: 0 15px;
+        }
+
+        .arcade-btn {
+          width: 100px;
+          height: 100px;
+          font-size: 1.6em;
+        }
+
+        .label {
+          font-size: 0.9em;
+        }
+      }
+
+      @media (max-width: 480px) {
+        h1 {
+          font-size: 1.8em;
+          margin-bottom: 25px;
+        }
+
+        .soundboard {
+          gap: 20px 25px;
+          padding: 0 10px;
+        }
+
+        .arcade-btn {
+          width: 90px;
+          height: 90px;
+          font-size: 1.4em;
+        }
+
+        .label {
+          font-size: 0.85em;
+          letter-spacing: 0.5px;
+        }
       }
     </style>
   </head>
